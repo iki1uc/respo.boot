@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ETAGE · arg.sync · Brücke</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #05070c;
+      font-family: 'Segoe UI', 'Consolas', monospace;
+      color: #c0d0d0;
+      padding: 4px;
+    }
+    #status {
+      font-size: 9px;
+      color: #5a7a8a;
+      border-bottom: 1px solid rgba(100,180,255,0.04);
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    #status .modul-name { color: #b388ff; font-weight:bold; }
+    #status .sync-badge { color: #f0d080; }
+    iframe {
+      width: 100%;
+      height: calc(100vh - 60px);
+      border: 0;
+      background: #05070c;
+      border-radius: 8px;
+    }
+    .mini-controls {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .mini-controls button {
+      background: rgba(20,28,36,0.4);
+      border: 1px solid rgba(120,160,190,0.06);
+      color: #9ab0c0;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 8px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .mini-controls button:hover {
+      background: rgba(40,70,90,0.2);
+      border-color: rgba(160,200,240,0.1);
+      color: #d0e8f8;
+    }
+    .mini-controls button.sync {
+      border-color: rgba(179,136,255,0.1);
+      color: #b388ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="status">
+    <span><span class="modul-name" id="modulLabel">ETAGE</span> · <span id="moduleStatus">bereit</span></span>
+    <span><span class="sync-badge">●</span> <span id="syncCount">0</span> SYNCs</span>
+  </div>
+
+  <iframe id="childFrame" src="index.html"></iframe>
+
+  <div class="mini-controls">
+    <button class="sync" id="btnSyncUp">🔄 SYNC an Root</button>
+    <button id="btnReload">⟲ Neuladen</button>
+    <button id="btnReset">↩️ Reset</button>
+  </div>
+
+<script>
+"use strict";
+/* ================================================================
+   ETAGE · arg.sync – Brücke zwischen Root und Modul-Index
+   Diese Seite liegt in jedem Unterordner (api.cntrl, cpu, gpu, ram, 3, NEWADA)
+   und lädt die dortige index.html in einem iframe.
+   Sie leitet arg.sync-Nachrichten von Root an das Kind weiter und umgekehrt.
+   ================================================================ */
+
+const modulName = document.getElementById('modulLabel');
+const moduleStatus = document.getElementById('moduleStatus');
+const syncCountSpan = document.getElementById('syncCount');
+const childFrame = document.getElementById('childFrame');
+let syncCounter = 0;
+
+// ─── Modul-Name aus Pfad extrahieren ──────────────────────────────
+// Nimmt den letzten Ordner der URL (z.B. .../api.cntrl/etage.html → api.cntrl)
+const pathParts = window.location.pathname.split('/');
+const folderName = pathParts[pathParts.length - 2] || 'ETAGE';
+modulName.textContent = folderName;
+
+// ─── Status-Update ──────────────────────────────────────────────
+function setStatus(text, color = '#5a7a8a') {
+  moduleStatus.textContent = text;
+  moduleStatus.style.color = color;
+}
+
+setStatus('geladen', '#8cf0d0');
+
+// ─── SYNC nach oben (Root) ──────────────────────────────────────
+function syncToRoot(payload) {
+  syncCounter++;
+  syncCountSpan.textContent = syncCounter;
+  const msg = {
+    type: 'arg.sync',
+    from: folderName,
+    payload: payload || 'sync:etage'
+  };
+  window.parent.postMessage(msg, '*');
+  setStatus(`SYNC → Root: ${msg.payload}`, '#b388ff');
+  log(`⬆ SYNC an Root: ${msg.payload}`);
+}
+
+// ─── SYNC von oben (Root) empfangen ──────────────────────────────
+function receiveFromRoot(event) {
+  const data = event.data;
+  if (data && data.type === 'arg.sync') {
+    syncCounter++;
+    syncCountSpan.textContent = syncCounter;
+    setStatus(`SYNC ← Root: ${data.payload}`, '#f0d080');
+    log(`⬇ SYNC von Root: ${data.payload}`);
+
+    // An das Kind (index.html) weiterleiten
+    try {
+      if (childFrame.contentWindow) {
+        childFrame.contentWindow.postMessage({
+          type: 'arg.sync',
+          payload: data.payload,
+          from: 'etage'
+        }, '*');
+      }
+    } catch(e) {
+      // Cross-Origin-Fehler ignorieren – Kind ist im selben Ordner, sollte gehen
+    }
+  }
+}
+
+// ─── LOG (in der Konsole und im Status) ──────────────────────────
+function log(msg) {
+  console.log(`[${folderName}] ${msg}`);
+}
+
+// ─── EVENT-LISTENER ──────────────────────────────────────────────
+window.addEventListener('message', receiveFromRoot);
+
+// ─── BUTTONS ──────────────────────────────────────────────────────
+document.getElementById('btnSyncUp').addEventListener('click', () => {
+  syncToRoot('sync:' + folderName);
+});
+
+document.getElementById('btnReload').addEventListener('click', () => {
+  childFrame.src = childFrame.src;
+  setStatus('neu geladen', '#8cf0d0');
+  log('⟲ Neugeladen');
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  // Reset-Signal an das Kind senden
+  try {
+    childFrame.contentWindow.postMessage({ type: 'reset', from: 'etage' }, '*');
+  } catch(e) {}
+  setStatus('Reset gesendet', '#ff6b6b');
+  log('↩️ Reset an Kind gesendet');
+});
+
+// ─── INIT ──────────────────────────────────────────────────────────
+log(`🧩 ETAGE · ${folderName} · arg.sync-Brücke bereit`);
+setStatus('bereit', '#8cf0d0');
+
+// Dem Root mitteilen, dass diese Etage bereit ist
+window.parent.postMessage({ type: 'etage.ready', from: folderName }, '*');
+
+// ─── Bei Fehler im Kind ──────────────────────────────────────────
+childFrame.addEventListener('load', () => {
+  setStatus('index.html geladen', '#8cf0d0');
+  log('📄 index.html geladen');
+});
+
+childFrame.addEventListener('error', () => {
+  setStatus('Fehler beim Laden von index.html', '#ff6b6b');
+  log('❌ index.html konnte nicht geladen werden');
+});
+</script>
+
+</body>
+</html>
