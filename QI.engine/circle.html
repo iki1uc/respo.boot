@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parameter-Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f4f5f7;
+    color: #1c2230;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 32px;
+    display: flex;
+    justify-content: center;
+  }
+  .container { max-width: 960px; width: 100%; }
+
+  header { margin-bottom: 28px; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header p { color: #5a6478; font-size: 14px; margin-top: 4px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e2e5eb;
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f1f4;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .label { color: #5a6478; }
+  .row .value { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  input[type="range"] { width: 100%; margin: 14px 0 6px; }
+
+  button {
+    background: #1c2230;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 4px 6px 0 0;
+  }
+  button:hover { background: #333c4f; }
+  button.secondary { background: #fff; color: #1c2230; border: 1px solid #d5d9e0; }
+  button.secondary:hover { background: #f0f1f4; }
+
+  #cycleCanvas {
+    width: 100%;
+    max-width: 420px;
+    display: block;
+    margin: 0 auto;
+    background: #fafbfc;
+    border-radius: 8px;
+    border: 1px solid #e2e5eb;
+  }
+
+  .log {
+    background: #f9fafb;
+    border: 1px solid #e2e5eb;
+    border-radius: 8px;
+    padding: 12px 14px;
+    height: 160px;
+    overflow-y: auto;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #5a6478;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Parameter-Dashboard</h1>
+    <p>Ein Regler steuert einen Ausgangswert, zwei Formeln berechnen daraus zwei Ergebnisse, ein Diagramm zeigt den Ablauf als Zyklus.</p>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Eingabe &amp; Berechnung</h2>
+      <div class="row"><span class="label">Eingabewert (0–100)</span><span class="value" id="inputDisplay">0</span></div>
+      <input type="range" id="inputSlider" min="0" max="100" value="0" step="1">
+      <div class="row"><span class="label">Ergebnis A (Wert ÷ 6)</span><span class="value" id="resultA">0</span></div>
+      <div class="row"><span class="label">Ergebnis B (Wert ÷ 8)</span><span class="value" id="resultB">0</span></div>
+      <div class="row"><span class="label">Berechnungen &gt; 0</span><span class="value" id="hitCount">0</span></div>
+      <div style="margin-top:12px;">
+        <button id="calcBtn">Berechnen</button>
+        <button class="secondary" id="resetBtn">Zurücksetzen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Aktionen</h2>
+      <p style="font-size:13px; color:#5a6478; margin-bottom:10px;">
+        Jede Aktion wird protokolliert und hebt einen Schritt im Zyklus-Diagramm hervor.
+      </p>
+      <div>
+        <button class="secondary" data-action="Schritt 1">Schritt 1</button>
+        <button class="secondary" data-action="Schritt 2">Schritt 2</button>
+        <button class="secondary" data-action="Schritt 3">Schritt 3</button>
+        <button class="secondary" data-action="Schritt 4">Schritt 4</button>
+      </div>
+      <div style="margin-top:10px; font-size:13px; color:#5a6478;">
+        Letzte Aktion: <span id="lastAction">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <h2>Zyklus-Diagramm (8 Schritte)</h2>
+    <canvas id="cycleCanvas" width="420" height="420"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Protokoll</h2>
+    <div class="log" id="logBox">Dashboard bereit.</div>
+  </div>
+
+</div>
+
+<script>
+ window.getCircleState = function() {
+  return {
+    a81: state.a81,
+    axis: state.axis,
+    potenz: state.potenz,
+    zahnrad: state.zahnrad,
+    delta: state.delta,
+    step: state.step,
+    pathIndex: state.pathIndex
+  };
+};
+
+ // Zustand
+  const state = { input: 0, resultA: 0, resultB: 0, hits: 0 };
+  const logs = [];
+  let highlightIndex = -1;
+
+  function log(msg) {
+    const time = new Date().toLocaleTimeString('de-DE');
+    logs.push(`[${time}] ${msg}`);
+    const box = document.getElementById('logBox');
+    box.innerHTML = logs.slice(-30).join('<br>');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function calculate() {
+    state.resultA = Math.floor(state.input / 6);
+    state.resultB = Math.floor(state.input / 8);
+    if (state.resultA > 0) state.hits++;
+    log(`Berechnet: A=${state.resultA}, B=${state.resultB} (Eingabe=${state.input})`);
+    updateDisplay();
+  }
+
+  function reset() {
+    state.input = 0; state.resultA = 0; state.resultB = 0; state.hits = 0;
+    document.getElementById('inputSlider').value = 0;
+    highlightIndex = -1;
+    log('Zurückgesetzt.');
+    updateDisplay();
+    drawCycle();
+  }
+
+  function updateDisplay() {
+    document.getElementById('inputDisplay').textContent = state.input;
+    document.getElementById('resultA').textContent = state.resultA;
+    document.getElementById('resultB').textContent = state.resultB;
+    document.getElementById('hitCount').textContent = state.hits;
+  }
+
+  // Zyklus-Diagramm: 8 Knoten im Kreis, verbunden im Kreis
+  function drawCycle() {
+    const canvas = document.getElementById('cycleCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height, cx = w/2, cy = h/2, r = 150;
+    ctx.clearRect(0, 0, w, h);
+
+    const labels = ['1','2','3','4','5','6','7','8'];
+    const points = labels.map((_, i) => {
+      const angle = (i / labels.length) * 2 * Math.PI - Math.PI/2;
+      return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    });
+
+    // Verbindungslinien
+    ctx.strokeStyle = '#d5d9e0';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const next = points[(i+1) % points.length];
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(next.x, next.y);
+    });
+    ctx.stroke();
+
+    // Knoten
+    points.forEach((p, i) => {
+      const active = i === highlightIndex;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, active ? 22 : 16, 0, 2*Math.PI);
+      ctx.fillStyle = active ? '#1c2230' : '#fff';
+      ctx.fill();
+      ctx.strokeStyle = active ? '#1c2230' : '#c5cad3';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = active ? '#fff' : '#1c2230';
+      ctx.font = '600 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labels[i], p.x, p.y);
+    });
+  }
+
+  // Events
+  document.getElementById('inputSlider').addEventListener('input', function() {
+    state.input = parseInt(this.value);
+    updateDisplay();
+  });
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  document.querySelectorAll('[data-action]').forEach((btn, i) => {
+    btn.addEventListener('click', function() {
+      const action = this.dataset.action;
+      document.getElementById('lastAction').textContent = action;
+      log(`Aktion ausgeführt: ${action}`);
+      highlightIndex = i * 2; // beliebiger Schritt im Diagramm
+      drawCycle();
+    });
+  });
+
+  // Start
+  drawCycle();
+  updateDisplay();
+  log('Dashboard geladen.');
+</script>
+</body>
+</html>
