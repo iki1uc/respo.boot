@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>ERROR 404 • jetzt‑noch-weiter</title>
+
+<style>
+body { background:#000; color:#0f0; font-family:Consolas; padding:20px; }
+h1 { color:#0f0; }
+pre { background:#111; padding:20px; border-left:4px solid #0f0; }
+.section { margin-bottom:40px; }
+.block { background:#111; padding:15px; border-left:3px solid #0f0; margin-bottom:20px; }
+.output { background:#000; padding:10px; margin-top:20px; border-left:3px solid #0f0; }
+</style>
+</head>
+
+<body>
+
+<h1>ERROR 404 • GEO‑POINT beta</h1>
+<pre>© iki1uc wieimmer</pre>
+
+<!-- 404‑ENTKORRIGIER -->
+<div class="section">
+<div class="block">
+<strong>404‑FEHLER‑SCHABLONE</strong><br><br>
+
+Wenn du hier landest:<br>
+- Y → links prüfen (Pfad falsch)<br>
+- Z → rechts korrigieren (Ordner falsch)<br>
+- T → Tiefe prüfen (Layer / Unterordner)<br>
+- ORT → Ebene prüfen (△)<br>
+- HOME → Root prüfen (◆)<br>
+- O → Ursprung prüfen<br>
+- H → Kern prüfen<br>
+</div>
+</div>
+
+<!-- RUNDRUM‑ENGINE -->
+<div class="section">
+<div class="block">
+<h2>VOLLKREIS‑ENGINE • NET‑LINK‑CONNECT</h2>
+<p>3‑EVO‑Maschinen‑Sprache aktiv</p>
+
+<div id="status-output" class="output">Status: —</div>
+<div id="evo-output" class="output">EVO: —</div>
+<div id="axis-output" class="output">Achse: —</div>
+<div id="pointer-output" class="output">Pointer: —</div>
+<div id="machine-output" class="output">Maschinen‑Sprache: —</div>
+<div id="net-output" class="output">NET: —</div>
+<div id="link-output" class="output">LINK: —</div>
+
+</div>
+</div>
+
+<script>
+
+/* 404 PFAD-SCANNER • klar-SCHALTUNG */
+function PfadScanner(url, status) {
+
+  const pfad = {
+    left: url.includes("/y/"),
+    right: url.includes("/z/"),
+    depth: (url.match(/\//g) || []).length,
+    layer: url.split("/").length,
+    root: url.startsWith("/")
+  };
+
+  let achse = "—";
+  if (["OK","READY","FIXED","DONE"].includes(status)) achse = "Y/Z";
+  if (["HELP","UNCLEAR"].includes(status)) achse = "X";
+  if (["ERROR","QI","FC","CORE"].includes(status)) achse = "O/H";
+
+  const kern = {
+    origin: achse === "O/H",
+    core: achse === "O/H"
+  };
+
+  const vollkreis = {
+    "Y/Z": ["◉","3","9","◎"],
+    "X":   ["◎","△","▣"],
+    "O/H": ["◉","◎","◆","△","↺"],
+    "—":   []
+  }[achse];
+
+  const uhr = {
+    "◉": "00:00",
+    "3": "03:00",
+    "◎": "06:00",
+    "9": "09:00",
+    "◆": "12:00",
+    "△": "15:00",
+    "27": "21:00",
+    "▣": "24:00",
+    "↺": "RESET"
+  };
+
+  return {
+    pfad,
+    achse,
+    kern,
+    vollkreis,
+    uhrzeit: vollkreis.map(v => uhr[v] || "--:--")
+  };
+}
+
+/* PFAD-deuter AKTIVIEREN */
+const scan = PfadScanner(window.location.pathname, "ERROR");
+
+/* LIVE-NAVIGATOR • VOLLKREIS-MIND */
+function LiveNavigator(scan) {
+
+  let nav = "—";
+
+  if (!scan.pfad.left && !scan.pfad.right) nav = "Kein Y/Z erkannt → Root prüfen (◆)";
+  if (scan.pfad.left && !scan.pfad.right) nav = "Y erkannt → rechts korrigieren (Z)";
+  if (!scan.pfad.left && scan.pfad.right) nav = "Z erkannt → links prüfen (Y)";
+  if (scan.pfad.depth > 4) nav = "Tiefe zu hoch → T prüfen";
+
+  if (scan.achse === "X") nav = "Achse X → Ebene prüfen (△)";
+  if (scan.achse === "Y/Z") nav = "Achse Y/Z → stabiler Pfad";
+  if (scan.achse === "O/H") nav = "Orbit erkannt → Ursprung/Kern prüfen (◉ / ◎)";
+
+  const pos = scan.vollkreis[0] || "—";
+  const time = scan.uhrzeit[0] || "--:--";
+
+  return { navigation: nav, position: pos, time: time };
+}
+
+/* LIVE-automodus AKTIVIEREN */
+const navigator = LiveNavigator(scan);
+
+/* AUSGABE */
+document.getElementById("pointer-output").innerText =
+  "Pfad: " + JSON.stringify(scan.pfad) +
+  "\nNavigator: " + navigator.navigation;
+
+document.getElementById("axis-output").innerText = "Achse: " + scan.achse;
+document.getElementById("machine-output").innerText = "Kern: " + JSON.stringify(scan.kern);
+
+document.getElementById("link-output").innerText =
+  "Vollkreis: " + scan.vollkreis.join(" → ") +
+  "\nPosition: " + navigator.position;
+
+document.getElementById("evo-output").innerText =
+  "Uhrzeit: " + scan.uhrzeit.join(" | ") +
+  "\nZeit: " + navigator.time;
+
+/* STATUS CHECKER → allrumall ENGINE */
+function VollkreisEngine(status) {
+
+  let evo="", axis="", pointer="", link="";
+
+  switch(status) {
+    case "OK":
+    case "READY":
+    case "FIXED":
+    case "DONE":
+      evo="EVO-GROUND"; axis="Y/Z"; pointer="GROUND EDIT POINTER"; link="Y → Z"; break;
+
+    case "HELP":
+    case "UNCLEAR":
+      evo="EVO-AIR"; axis="X"; pointer="AIR EDIT POINTER"; link="X"; break;
+
+    case "ERROR":
+    case "QI":
+    case "FC":
+    case "CORE":
+      evo="EVO-ORBIT"; axis="O/H"; pointer="ORBIT EDIT POINTER"; link="O → H"; break;
+
+    default:
+      evo="UNKNOWN"; axis="—"; pointer="—"; link="—";
+  }
+
+  const machine = "MSIG{" + evo + "|" + axis + "|" + pointer + "}";
+
+  document.getElementById("status-output").innerText = "Status: " + status;
+  document.getElementById("evo-output").innerText += "\nEVO: " + evo;
+  document.getElementById("axis-output").innerText = "Achse: " + axis;
+  document.getElementById("pointer-output").innerText += "\nPointer: " + pointer;
+  document.getElementById("machine-output").innerText += "\nMaschinen‑Sprache: " + machine;
+  document.getElementById("link-output").innerText += "\nLINK: " + link;
+}
+
+/* NET‑Verbindung */
+NET = {
+  CONNECT: function(a,b){
+    document.getElementById("net-output").innerText =
+      "NET: " + a + " → " + b + " verbunden";
+  }
+};
+
+NET.CONNECT("STATUS_CHECKER", "VOLLKREIS_ENGINE");
+
+/* Beispiel‑Status */
+VollkreisEngine("ERROR");
+
+</script>
+
+</body>
+</html>
